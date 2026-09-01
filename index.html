@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ТОО «Ортеко» — Операционная система (Прототип)</title>
+  
+  <!-- Semantic UI CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.5.0/semantic.min.css" />
+  
+  <!-- React, ReactDOM, Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Semantic UI React -->
+  <script src="https://unpkg.com/semantic-ui-react@2.1.5/dist/umd/semantic-ui-react.min.js"></script>
+
+  <style>
+    body { background-color: #f7f9fa; padding-top: 20px; }
+    .main-container { margin-top: 1em; }
+    .role-switcher { margin-bottom: 1.5em; background: #fff; padding: 1em; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .bot-mockup { background: #eef5f9; border: 1px solid #d4e3ed; border-radius: 8px; padding: 15px; }
+    .chat-bubble { background: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; max-width: 85%; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .chat-bubble.user { background: #e3f2fd; margin-left: auto; }
+    .pulse-badge { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { Container, Header, Table, Button, Icon, Label, Segment, Grid, Statistic, Form, Message, Modal, Dropdown, Progress } = semanticUIReact;
+
+    // --- Начальное состояние приложения ---
+    const INITIAL_STOCK = [
+      { id: 'SKU-001', name: 'ТЭН 2kW для печи Unox', qty: 12, price: 18500 },
+      { id: 'SKU-002', name: 'Помпа помповая 50W', qty: 2, price: 24000 },
+      { id: 'SKU-003', name: 'Плата управления кофемашины', qty: 3, price: 85000 },
+    ];
+
+    const INITIAL_CLIENTS = [
+      { id: 1, name: 'Кафе "Del Mar"', contract: 'Договор №42 (120k/мес)', visitsLeft: 1 },
+      { id: 2, name: 'Ресторан "Алатау"', contract: 'Разовый', visitsLeft: 0 },
+      { id: 3, name: 'Кофейня "Traveler"', contract: 'Договор №18 (120k/мес)', visitsLeft: 2 },
+    ];
+
+    const INITIAL_INVOICES = [
+      { id: 'INV-2026-01', client: 'Кафе "Del Mar"', type: 'Абонплата (Сентябрь)', amount: 120000, status: 'Готов к 1С', date: '01.09.2026' },
+      { id: 'INV-2026-02', client: 'Ресторан "Алатау"', type: 'Платный ремонт', amount: 42500, status: 'Готов к 1С', date: '01.09.2026' },
+    ];
+
+    // --- Компоненты Экранов ---
+
+    // 1. Директор (Марат)
+    const DirectorView = ({ metrics, invoices }) => {
+      const totalRevenue = invoices.reduce((acc, curr) => acc + curr.amount, 0);
+      return (
+        <div>
+          <Header as="h2" icon color="blue">
+            <Icon name="chart line" />
+            Панель Управления Директора (Марат)
+            <Header.Subheader>Сквозная аналитика, касса и операционный контроль в реальном времени</Header.Subheader>
+          </Header>
+          <Grid columns={4} stackable style={{ marginBottom: '1em' }}>
+            <Grid.Column><Segment><Statistic label="Оборот (Реестр)" value={`${totalRevenue.toLocaleString('ru-RU')} ₸`} color="green" size="small" /></Segment></Grid.Column>
+            <Grid.Column><Segment><Statistic label="Остаток на счёте" value="2 150 000 ₸" color="blue" size="small" /></Segment></Grid.Column>
+            <Grid.Column><Segment><Statistic label="Активных заявок" value={metrics.activeOrders} color="orange" size="small" /></Segment></Grid.Column>
+            <Grid.Column><Segment><Statistic label="Счетов в 1С" value={invoices.length} color="purple" size="small" /></Segment></Grid.Column>
+          </Grid>
+          
+          <Segment style={{ marginTop: '1.5em' }}>
+            <Header as="h4">Загрузка сервисной службы по типам работ</Header>
+            <Label color="teal" style={{ marginBottom: '5px' }}>Плановые ТО (65%)</Label>
+            <Progress percent={65} color="teal" progress />
+            <Label color="orange" style={{ marginBottom: '5px' }}>Аварийные вызовы (35%)</Label>
+            <Progress percent={35} color="orange" progress />
+          </Segment>
+
+          <Message warning icon="warning sign" header="Оперативный статус" content="Система отслеживает списания запчастей инженерами на объектах. Утечки ТМЦ исключены." />
+        </div>
+      );
+    };
+
+    // 2. Менеджер по продажам (Айгерим)
+    const SalesView = ({ clients, stock, onAddInvoice, onRenewContract }) => {
+      const [modalOpen, setModalOpen] = React.useState(false);
+      const [selectedClient, setSelectedClient] = React.useState('');
+      const [selectedItem, setSelectedItem] = React.useState('');
+      const [itemQty, setItemQty] = React.useState(1);
+      const [generatedKp, setGeneratedKp] = React.useState(null);
+
+      const clientOptions = clients.map(c => ({ key: c.id, text: c.name, value: c.name }));
+      const itemOptions = stock.map(s => ({ key: s.id, text: `${s.name} (${s.price.toLocaleString('ru-RU')} ₸)`, value: s.id }));
+
+      const handleCreateKp = () => {
+        const itemObj = stock.find(s => s.id === selectedItem);
+        const total = itemObj ? itemObj.price * itemQty : 0;
+        
+        const newInv = {
+          id: `INV-2026-0${Math.floor(10 + Math.random() * 90)}`,
+          client: selectedClient,
+          type: `Продажа: ${itemObj.name}`,
+          amount: total,
+          status: 'Готов к 1С',
+          date: new Date().toLocaleDateString('ru-RU')
+        };
+        onAddInvoice(newInv);
+
+        setGeneratedKp({
+          id: `KP-${Math.floor(1000 + Math.random() * 9000)}`,
+          client: selectedClient,
+          itemName: itemObj ? itemObj.name : '',
+          qty: itemQty,
+          total: total.toLocaleString('ru-RU') + ' ₸',
+          date: new Date().toLocaleDateString('ru-RU')
+        });
+      };
+
+      return (
+        <div>
+          <Header as="h2" icon color="teal">
+            <Icon name="users" />
+            База Клиентов и Генератор КП (Айгерим)
+            <Header.Subheader>Создание КП по актуальному прайсу и управление абонементами</Header.Subheader>
+          </Header>
+
+          <Segment clearing basic style={{ padding: 0, marginBottom: '1em' }}>
+            <Button floated="right" color="teal" icon="plus" content="Создать новое КП" onClick={() => { setGeneratedKp(null); setModalOpen(true); }} />
+          </Segment>
+
+          <Table celled striped responsive>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell>Клиент</Table.HeaderCell>
+                <Table.HeaderCell>Тип Договора</Table.HeaderCell>
+                <Table.HeaderCell>Остаток выездов</Table.HeaderCell>
+                <Table.HeaderCell>Действие</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {clients.map(c => (
+                <Table.Row key={c.id}>
+                  <Table.Cell><strong>{c.name}</strong></Table.Cell>
+                  <Table.Cell>{c.contract}</Table.Cell>
+                  <Table.Cell><Label color={c.visitsLeft > 0 ? 'green' : 'red'}>{c.visitsLeft} из 2</Label></Table.Cell>
+                  <Table.Cell>
+                    <Button size="mini" basic color="teal" icon="file pdf" content="Выставить КП" onClick={() => { setSelectedClient(c.name); setGeneratedKp(null); setModalOpen(true); }} />
+                    {c.visitsLeft === 0 && (
+                      <Button size="mini" color="orange" icon="refresh" content="Продлить абонемент (+2)" onClick={() => onRenewContract(c.id)} />
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+
+          {/* Modal KP */}
+          <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="small">
+            <Modal.Header><Icon name="file alternate outline" /> Конструктор Коммерческого Предложения</Modal.Header>
+            <Modal.Content>
+              {!generatedKp ? (
+                <Form>
+                  <Form.Field>
+                    <label>Выберите клиента:</label>
+                    <Dropdown placeholder="Выберите из базы" fluid selection options={clientOptions} value={selectedClient} onChange={(e, { value }) => setSelectedClient(value)} />
+                  </Form.Field>
+                  <Form.Group widths="equal">
+                    <Form.Field>
+                      <label>Позиция со склада (НСИ):</label>
+                      <Dropdown placeholder="Выберите товар" fluid selection options={itemOptions} value={selectedItem} onChange={(e, { value }) => setSelectedItem(value)} />
+                    </Form.Field>
+                    <Form.Input label="Количество (шт):" type="number" min="1" value={itemQty} onChange={(e) => setItemQty(parseInt(e.target.value) || 1)} />
+                  </Form.Group>
+                  <Button color="teal" fluid onClick={handleCreateKp} disabled={!selectedClient || !selectedItem}>
+                    Сформировать КП и передать в бухгалтерию
+                  </Button>
+                </Form>
+              ) : (
+                <Segment color="teal">
+                  <Header as="h3" color="teal">Сформирован документ {generatedKp.id}</Header>
+                  <p><strong>Заказчик:</strong> {generatedKp.client}</p>
+                  <p><strong>Позиция:</strong> {generatedKp.itemName} — {generatedKp.qty} шт.</p>
+                  <Header as="h3" style={{ marginTop: 0 }}>Итого: {generatedKp.total}</Header>
+                  <Message positive icon="check circle" header="Счёт автоматически сформирован" content="Запись добавлена в реестр бухгалтера Гульнары." />
+                </Segment>
+              )}
+            </Modal.Content>
+            <Modal.Actions>
+              <Button onClick={() => setModalOpen(false)}>Закрыть</Button>
+            </Modal.Actions>
+          </Modal>
+        </div>
+      );
+    };
+
+    // 3. Сервисный Инженер (Ержан) — Интерактивный Чат-Бот
+    const EngineerBotView = ({ stock, onCompleteJob }) => {
+      const [jobStatus, setJobStatus] = React.useState('pending'); // pending, arrived, completed
+      const [selectedPart, setSelectedPart] = React.useState('SKU-001');
+
+      const handleFinish = () => {
+        setJobStatus('completed');
+        onCompleteJob(selectedPart, 'Кафе "Del Mar"', 22500);
+      };
+
+      return (
+        <div>
+          <Header as="h2" icon color="violet">
+            <Icon name="mobile alternate" />
+            Рабочее место Инженера (Telegram/WhatsApp Bot)
+            <Header.Subheader>Интерактивный симулятор работы инженера на объекте</Header.Subheader>
+          </Header>
+          <Grid columns={2} stackable>
+            <Grid.Column width={10}>
+              <div class="bot-mockup">
+                <Header as="h4"><Icon name="telegram" color="blue" /> Telegram Bot — «Ортеко Сервис»</Header>
+                
+                <div class="chat-bubble">🔔 <strong>Заявка #REQ-101</strong><br/>Объект: Кафе "Del Mar"<br/>Проблема: Не греет печь Unox №8492</div>
+
+                {jobStatus === 'pending' && (
+                  <div style={{ textAlign: 'center', margin: '15px 0' }}>
+                    <Button color="blue" icon="map marker alternate" content="[ Нажать: Я прибыл на объект ]" onClick={() => setJobStatus('arrived')} />
+                  </div>
+                )}
+
+                {jobStatus !== 'pending' && (
+                  <>
+                    <div class="chat-bubble user">Статус: Прибыл на объект</div>
+                    <div class="chat-bubble">Укажите использованную запчасть для авто-списания со склада:</div>
+                    
+                    {jobStatus === 'arrived' ? (
+                      <Segment basic style={{ padding: 0, margin: '10px 0' }}>
+                        <Form>
+                          <Form.Field>
+                            <select value={selectedPart} onChange={(e) => setSelectedPart(e.target.value)} style={{ padding: '8px', borderRadius: '4px', width: '100%' }}>
+                              {stock.map(s => (
+                                <option key={s.id} value={s.id} disabled={s.qty <= 0}>
+                                  {s.name} (Доступно: {s.qty} шт.)
+                                </option>
+                              ))}
+                            </select>
+                          </Form.Field>
+                          <Button color="green" icon="check" content="Завершить работу и списать запчасть" onClick={handleFinish} />
+                        </Form>
+                      </Segment>
+                    ) : null}
+                  </>
+                )}
+
+                {jobStatus === 'completed' && (
+                  <>
+                    <div class="chat-bubble user">📷 Загружен фото-акт выполненных работ</div>
+                    <div class="chat-bubble">
+                      ✅ <strong>Заявка #REQ-101 закрыта!</strong><br/>
+                      - Запчасть автоматически списана со склада Серика.<br/>
+                      - Счёт за работу автоматически отправлен Гульнаре.
+                    </div>
+                    <Button basic size="tiny" color="blue" onClick={() => setJobStatus('pending')}>Сбросить симулятор бота</Button>
+                  </>
+                )}
+              </div>
+            </Grid.Column>
+            <Grid.Column width={6}>
+              <Message info header="Живая интеграция" content="Любое действие инженера в боте мгновенно списывает остатки на складе и формирует первичку для бухгалтерии." />
+            </Grid.Column>
+          </Grid>
+        </div>
+      );
+    };
+
+    // 4. Кладовщик (Серик)
+    const WarehouseView = ({ stock, onAddStock }) => {
+      const [modalOpen, setModalOpen] = React.useState(false);
+      const [itemName, setItemName] = React.useState('');
+      const [itemQty, setItemQty] = React.useState(5);
+      const [itemPrice, setItemPrice] = React.useState(10000);
+
+      const handleAdd = () => {
+        if (!itemName) return;
+        onAddStock({
+          id: `SKU-00${stock.length + 1}`,
+          name: itemName,
+          qty: parseInt(itemQty),
+          price: parseInt(itemPrice)
+        });
+        setItemName('');
+        setModalOpen(false);
+      };
+
+      return (
+        <div>
+          <Header as="h2" icon color="brown">
+            <Icon name="boxes" />
+            Складской учёт (Серик)
+            <Header.Subheader>Остатки обновляются автоматически при списании через бота</Header.Subheader>
+          </Header>
+
+          <Segment clearing basic style={{ padding: 0, marginBottom: '1em' }}>
+            <Button floated="right" color="brown" icon="plus" content="Оприходовать новый товар" onClick={() => setModalOpen(true)} />
+          </Segment>
+
+          <Table celled responsive>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell>Артикул</Table.HeaderCell>
+                <Table.HeaderCell>Наименование (НСИ)</Table.HeaderCell>
+                <Table.HeaderCell>Цена (₸)</Table.HeaderCell>
+                <Table.HeaderCell>Остаток на складе</Table.HeaderCell>
+                <Table.HeaderCell>Статус</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {stock.map(s => (
+                <Table.Row key={s.id} warning={s.qty === 0}>
+                  <Table.Cell>{s.id}</Table.Cell>
+                  <Table.Cell><strong>{s.name}</strong></Table.Cell>
+                  <Table.Cell>{s.price.toLocaleString('ru-RU')}</Table.Cell>
+                  <Table.Cell><strong>{s.qty} шт.</strong></Table.Cell>
+                  <Table.Cell>
+                    <Label color={s.qty > 5 ? 'green' : s.qty > 0 ? 'yellow' : 'red'}>
+                      {s.qty > 5 ? 'В наличии' : s.qty > 0 ? 'Мало' : 'ТРЕБУЕТСЯ ЗАКУП'}
+                    </Label>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+
+          {/* Modal Add Stock */}
+          <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="small">
+            <Modal.Header><Icon name="box" /> Оприходование товара на склад</Modal.Header>
+            <Modal.Content>
+              <Form>
+                <Form.Input label="Наименование ТМЦ:" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Например: Термостат 250C" />
+                <Form.Group widths="equal">
+                  <Form.Input label="Количество (шт):" type="number" value={itemQty} onChange={(e) => setItemQty(e.target.value)} />
+                  <Form.Input label="Закупочная цена (₸):" type="number" value={itemPrice} onChange={(e) => setItemPrice(e.target.value)} />
+                </Form.Group>
+                <Button color="brown" fluid onClick={handleAdd}>Сохранить и внести в номенклатуру</Button>
+              </Form>
+            </Modal.Content>
+          </Modal>
+        </div>
+      );
+    };
+
+    // 5. Бухгалтер (Гульнара)
+    const AccountantView = ({ invoices }) => {
+      const [exported, setExported] = React.useState(false);
+
+      const handleExport1C = () => {
+        const csvHeader = "ID Счета;Дата;Клиент;Тип Операции;Сумма;Статус\n";
+        const csvRows = invoices.map(i => `${i.id};${i.date};"${i.client}";"${i.type}";"${i.amount}";"${i.status}"`).join("\n");
+        const blob = new Blob(["\uFEFF" + csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Orteko_1C_Export_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setExported(true);
+      };
+
+      return (
+        <div>
+          <Header as="h2" icon color="olive">
+            <Icon name="file invoice dollar" />
+            Рабочее место Бухгалтера (Гульнара)
+            <Header.Subheader>Автоматически пополняемый реестр счетов по актам инженеров</Header.Subheader>
+          </Header>
+
+          <Segment clearing basic style={{ padding: 0, marginBottom: '1em' }}>
+            <Button floated="right" color="olive" icon="download" content="Выгрузить реестр в 1С (CSV)" onClick={handleExport1C} />
+          </Segment>
+
+          {exported && (
+            <Message positive icon="check" header="Экспорт выполнен!" content="Сформирован файл CSV для выгрузки в 1С:Бухгалтерию." />
+          )}
+
+          <Table celled striped responsive>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell>№ Счета / Акта</Table.HeaderCell>
+                <Table.HeaderCell>Дата</Table.HeaderCell>
+                <Table.HeaderCell>Клиент</Table.HeaderCell>
+                <Table.HeaderCell>Тип операции</Table.HeaderCell>
+                <Table.HeaderCell>Сумма</Table.HeaderCell>
+                <Table.HeaderCell>Статус 1С</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {invoices.map(inv => (
+                <Table.Row key={inv.id}>
+                  <Table.Cell><strong>{inv.id}</strong></Table.Cell>
+                  <Table.Cell>{inv.date}</Table.Cell>
+                  <Table.Cell>{inv.client}</Table.Cell>
+                  <Table.Cell>{inv.type}</Table.Cell>
+                  <Table.Cell><strong>{inv.amount.toLocaleString('ru-RU')} ₸</strong></Table.Cell>
+                  <Table.Cell>
+                    <Label color={inv.status === 'Готов к 1С' ? 'orange' : 'green'}>{inv.status}</Label>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </div>
+      );
+    };
+
+    // --- Main App Component ---
+    const App = () => {
+      const [activeRole, setActiveRole] = React.useState('engineer');
+      
+      // Shared Global State
+      const [stock, setStock] = React.useState(INITIAL_STOCK);
+      const [clients, setClients] = React.useState(INITIAL_CLIENTS);
+      const [invoices, setInvoices] = React.useState(INITIAL_INVOICES);
+      const [metrics, setMetrics] = React.useState({ activeOrders: 14 });
+
+      // Action: Инженер завершил работу
+      const handleCompleteJob = (partId, clientName, laborPrice) => {
+        // 1. Списать склад
+        setStock(prev => prev.map(item => {
+          if (item.id === partId) {
+            return { ...item, qty: Math.max(0, item.qty - 1) };
+          }
+          return item;
+        }));
+
+        // 2. Найти цену запчасти
+        const part = stock.find(s => s.id === partId);
+        const partPrice = part ? part.price : 0;
+        const total = partPrice + laborPrice;
+
+        // 3. Создать счет бухгалтеру
+        const newInvoice = {
+          id: `INV-2026-0${invoices.length + 1}`,
+          client: clientName,
+          type: `Акт выполненных работ (Замена ${part ? part.name : 'детали'})`,
+          amount: total,
+          status: 'Готов к 1С',
+          date: new Date().toLocaleDateString('ru-RU')
+        };
+
+        setInvoices(prev => [newInvoice, ...prev]);
+
+        // 4. Списать выезд у клиента
+        setClients(prev => prev.map(c => {
+          if (c.name === clientName && c.visitsLeft > 0) {
+            return { ...c, visitsLeft: c.visitsLeft - 1 };
+          }
+          return c;
+        }));
+      };
+
+      // Action: Продажи создали счет
+      const handleAddInvoice = (newInv) => {
+        setInvoices(prev => [newInv, ...prev]);
+      };
+
+      // Action: Продлить абонемент
+      const handleRenewContract = (clientId) => {
+        setClients(prev => prev.map(c => c.id === clientId ? { ...c, visitsLeft: c.visitsLeft + 2 } : c));
+      };
+
+      // Action: Склад пополнили
+      const handleAddStock = (newItem) => {
+        setStock(prev => [...prev, newItem]);
+      };
+
+      return (
+        <Container class="main-container">
+          {/* Role Switcher Bar */}
+          <div class="role-switcher">
+            <Header as="h4" style={{ marginBottom: '10px' }}>
+              Переключение ролей для демонстрации (Сквозная интерактивность):
+            </Header>
+            <Button.Group fluid stackable>
+              <Button active={activeRole === 'engineer'} color="violet" onClick={() => setActiveRole('engineer')}>
+                <Icon name="mobile" /> Инженер (Ержан / Бот)
+              </Button>
+              <Button active={activeRole === 'warehouse'} color="brown" onClick={() => setActiveRole('warehouse')}>
+                <Icon name="boxes" /> Склад (Серик)
+              </Button>
+              <Button active={activeRole === 'accountant'} color="olive" onClick={() => setActiveRole('accountant')}>
+                <Icon name="file invoice" /> Бухгалтер (Гульнара)
+              </Button>
+              <Button active={activeRole === 'sales'} color="teal" onClick={() => setActiveRole('sales')}>
+                <Icon name="users" /> Продажи (Айгерим)
+              </Button>
+              <Button active={activeRole === 'director'} color="blue" onClick={() => setActiveRole('director')}>
+                <Icon name="chart line" /> Директор (Марат)
+              </Button>
+            </Button.Group>
+          </div>
+
+          {/* Dynamic Content View */}
+          <Segment style={{ minHeight: '420px', padding: '2em' }}>
+            {activeRole === 'director' && <DirectorView metrics={metrics} invoices={invoices} />}
+            {activeRole === 'sales' && <SalesView clients={clients} stock={stock} onAddInvoice={handleAddInvoice} onRenewContract={handleRenewContract} />}
+            {activeRole === 'engineer' && <EngineerBotView stock={stock} onCompleteJob={handleCompleteJob} />}
+            {activeRole === 'warehouse' && <WarehouseView stock={stock} onAddStock={handleAddStock} />}
+            {activeRole === 'accountant' && <AccountantView invoices={invoices} />}
+          </Segment>
+        </Container>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
