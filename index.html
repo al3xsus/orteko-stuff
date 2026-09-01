@@ -54,15 +54,15 @@
 
     // --- Компоненты Экранов ---
 
-    // 1. Директор (Марат)
+    // 1. Директор
     const DirectorView = ({ metrics, invoices }) => {
       const totalRevenue = invoices.reduce((acc, curr) => acc + curr.amount, 0);
       return (
         <div>
-          <Header as="h2" icon color="blue">
+          <Header as="h2" icon color="blue" style={{width: "100%"}}>
             <Icon name="chart line" />
-            Панель Управления Директора (Марат)
-            <Header.Subheader>Сквозная аналитика, касса и операционный контроль в реальном времени</Header.Subheader>
+            Панель Управления Директора
+            <Header.Subheader>Аналитика, касса и операционный контроль в реальном времени</Header.Subheader>
           </Header>
           <Grid columns={4} stackable style={{ marginBottom: '1em' }}>
             <Grid.Column><Segment><Statistic label="Оборот (Реестр)" value={`${totalRevenue.toLocaleString('ru-RU')} ₸`} color="green" size="small" /></Segment></Grid.Column>
@@ -84,7 +84,7 @@
       );
     };
 
-    // 2. Менеджер по продажам (Айгерим)
+    // 2. Менеджер по продажам
     const SalesView = ({ clients, stock, onAddInvoice, onRenewContract }) => {
       const [modalOpen, setModalOpen] = React.useState(false);
       const [selectedClient, setSelectedClient] = React.useState('');
@@ -121,9 +121,9 @@
 
       return (
         <div>
-          <Header as="h2" icon color="teal">
+          <Header as="h2" icon color="teal" style={{width: "100%"}}>
             <Icon name="users" />
-            База Клиентов и Генератор КП (Айгерим)
+            База Клиентов и Генератор КП
             <Header.Subheader>Создание КП по актуальному прайсу и управление абонементами</Header.Subheader>
           </Header>
 
@@ -196,7 +196,7 @@
       );
     };
 
-    // 3. Сервисный Инженер (Ержан) — Интерактивный Чат-Бот
+    // 3. Сервисный Инженер - Интерактивный Чат-Бот
     const EngineerBotView = ({ stock, onCompleteJob }) => {
       const [jobStatus, setJobStatus] = React.useState('pending'); // pending, arrived, completed
       const [selectedPart, setSelectedPart] = React.useState('SKU-001');
@@ -208,7 +208,7 @@
 
       return (
         <div>
-          <Header as="h2" icon color="violet">
+          <Header as="h2" icon color="violet" style={{width: "100%"}}>
             <Icon name="mobile alternate" />
             Рабочее место Инженера (Telegram/WhatsApp Bot)
             <Header.Subheader>Интерактивный симулятор работы инженера на объекте</Header.Subheader>
@@ -271,7 +271,7 @@
       );
     };
 
-    // 4. Кладовщик (Серик)
+    // 4. Кладовщик
     const WarehouseView = ({ stock, onAddStock }) => {
       const [modalOpen, setModalOpen] = React.useState(false);
       const [itemName, setItemName] = React.useState('');
@@ -292,7 +292,7 @@
 
       return (
         <div>
-          <Header as="h2" icon color="brown">
+          <Header as="h2" icon color="brown" style={{width: "100%"}}>
             <Icon name="boxes" />
             Складской учёт (Серик)
             <Header.Subheader>Остатки обновляются автоматически при списании через бота</Header.Subheader>
@@ -347,7 +347,7 @@
       );
     };
 
-    // 5. Бухгалтер (Гульнара)
+    // 5. Бухгалтер
     const AccountantView = ({ invoices }) => {
       const [exported, setExported] = React.useState(false);
 
@@ -368,7 +368,7 @@
 
       return (
         <div>
-          <Header as="h2" icon color="olive">
+          <Header as="h2" icon color="olive" style={{width: "100%"}}>
             <Icon name="file invoice dollar" />
             Рабочее место Бухгалтера (Гульнара)
             <Header.Subheader>Автоматически пополняемый реестр счетов по актам инженеров</Header.Subheader>
@@ -477,24 +477,24 @@
         <Container class="main-container">
           {/* Role Switcher Bar */}
           <div class="role-switcher">
-            <Header as="h4" style={{ marginBottom: '10px' }}>
-              Переключение ролей для демонстрации (Сквозная интерактивность):
+            <Header as="h4" style={{ marginBottom: '10px', textAlign: "center" }}>
+              Переключение ролей для демонстрации:
             </Header>
             <Button.Group fluid stackable>
               <Button active={activeRole === 'engineer'} color="violet" onClick={() => setActiveRole('engineer')}>
-                <Icon name="mobile" /> Инженер (Ержан / Бот)
+                <Icon name="mobile" /> Инженер (Бот)
               </Button>
               <Button active={activeRole === 'warehouse'} color="brown" onClick={() => setActiveRole('warehouse')}>
-                <Icon name="boxes" /> Склад (Серик)
+                <Icon name="boxes" /> Склад
               </Button>
               <Button active={activeRole === 'accountant'} color="olive" onClick={() => setActiveRole('accountant')}>
-                <Icon name="file invoice" /> Бухгалтер (Гульнара)
+                <Icon name="file invoice" /> Бухгалтер
               </Button>
               <Button active={activeRole === 'sales'} color="teal" onClick={() => setActiveRole('sales')}>
-                <Icon name="users" /> Продажи (Айгерим)
+                <Icon name="users" /> Продажи
               </Button>
               <Button active={activeRole === 'director'} color="blue" onClick={() => setActiveRole('director')}>
-                <Icon name="chart line" /> Директор (Марат)
+                <Icon name="chart line" /> Директор
               </Button>
             </Button.Group>
           </div>
